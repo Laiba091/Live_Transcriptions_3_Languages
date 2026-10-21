@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live Transcription</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu&family=Noto+Naskh+Arabic&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0f1115;--card:#171a21;--line:#262b35;--text:#e8eaf0;--muted:#8a91a1;
+        --en:#4f8cff;--ur:#22b07d;--ps:#f0a23a;--rec:#ff4d4f}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif}
+  header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid var(--line)}
+  h1{font-size:18px;margin:0} .muted{color:var(--muted);font-size:13px}
+  .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  button{background:var(--en);color:#fff;border:0;border-radius:8px;padding:10px 18px;font-weight:600;cursor:pointer;font-size:14px}
+  button.stop{background:var(--rec)} button:disabled{opacity:.5;cursor:default}
+  .modes{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .modes label{padding:8px 12px;font-size:13px;cursor:pointer;color:var(--muted)}
+  .modes input{display:none}
+  .modes input:checked + span{color:#fff}
+  .modes label:has(input:checked){background:#262b35}
+  .modes.locked{opacity:.5;pointer-events:none}
+  .legend span{display:inline-block;margin-right:12px;font-size:13px}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:5px}
+  .share{display:none;max-width:900px;margin:12px auto 0;padding:10px 16px;font-size:13px;color:var(--muted)}
+  .share code{color:var(--text);background:var(--card);padding:3px 6px;border-radius:5px;word-break:break-all}
+  .share button{padding:5px 10px;font-size:12px;margin-left:6px}
+  main{max-width:900px;margin:0 auto;padding:16px}
+  .section-title{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:14px 0 8px}
+  .pulse{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--rec);margin-right:6px;animation:blink 1.2s infinite}
+  /* Live mode: one continuous transcript */
+  .doc{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 22px;min-height:240px}
+  .doc .placeholder{color:var(--muted);font-size:15px;margin:0}
+  .para{margin:0 0 14px;font-size:19px;line-height:1.8}
+  .para[dir=rtl]{text-align:right}
+  .para.ur{font-family:"Noto Nastaliq Urdu",serif;font-size:21px;line-height:2.3}
+  .para.ps{font-family:"Noto Naskh Arabic",serif;font-size:21px;line-height:2}
+  .ptag{font-family:Inter,system-ui,sans-serif;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;
+        padding:1px 7px;border-radius:99px;border:1px solid currentColor;margin-inline-end:8px;vertical-align:middle;unicode-bidi:isolate}
+  .para.en .ptag{color:var(--en)} .para.ur .ptag{color:var(--ur)} .para.ps .ptag{color:var(--ps)}
+  .seg{animation:fadein .35s ease-out}
+  .partial{color:var(--muted)}
+  .partial::after{content:" ▍";animation:blink 1s steps(2) infinite}
+  @keyframes fadein{from{opacity:.35}to{opacity:1}}
+  @media (prefers-reduced-motion:reduce){.seg,.pulse,.partial::after{animation:none}}
+  .row{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--en);border-radius:10px;padding:12px 14px;margin-bottom:10px}
+  .row.ur{border-left-color:var(--ur)} .row.ps{border-left-color:var(--ps)}
+  @keyframes blink{50%{opacity:0}}
+  .meta{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:6px}
+  .tag{font-weight:600} .en .tag{color:var(--en)} .ur .tag{color:var(--ur)} .ps .tag{color:var(--ps)}
+  .text{font-size:18px;line-height:1.7}
+  .text[dir=rtl]{text-align:right}
+  .ur .text{font-family:"Noto Nastaliq Urdu",serif;font-size:20px;line-height:2.2}
+  .ps .text{font-family:"Noto Naskh Arabic",serif;font-size:20px;line-height:1.9}
+  #status{font-size:13px} .live{color:var(--rec)}
+  .links a{color:var(--en);margin-left:12px;font-size:14px}
+  @media (max-width:600px){.text{font-size:16px}}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Live Transcription — English · اردو · پښتو</h1>
+    <div class="legend muted">
+      <span><i class="dot" style="background:var(--en)"></i>English</span>
+      <span><i class="dot" style="background:var(--ur)"></i>Urdu</span>
+      <span><i class="dot" style="background:var(--ps)"></i>Pashto</span>
+    </div>
+  </div>
+  <div class="controls">
+    <div class="modes" id="modes" title="Sentence: text after each pause. Live: text appears while you speak.">
+      <label><input type="radio" name="mode" value="sentence" checked><span>Sentence</span></label>
+      <label><input type="radio" name="mode" value="live"><span>Live</span></label>
+    </div>
+    <span id="status" class="muted">Ready</span>
+    <span class="links" id="links"></span>
+    <button id="btn">Start</button>
+  </div>
+</header>
+<div class="share" id="share">Public link (open on any phone or laptop): <code id="publicUrl"></code><button id="copy">Copy</button></div>
+<main>
+  <section id="liveDoc" hidden>
+    <div class="section-title"><span class="pulse"></span>Live transcript</div>
+    <div class="doc" id="doc"><p class="placeholder" id="placeholder">Start speaking. Your words appear here as one continuous transcript.</p></div>
+  </section>
+  <div class="section-title" id="listTitle" style="display:none">Finished sentences (saved)</div>
+  <div id="out"></div>
+</main>
+
+<script>
+const btn = document.getElementById('btn'), out = document.getElementById('out'),
+      statusEl = document.getElementById('status'), links = document.getElementById('links'),
+      modes = document.getElementById('modes');
+let ws, ctx, stream, node, running = false;
+const finals = new Map();        // sentence index -> last final row (for code-switch splits)
+let finalizedUpTo = 0;
+const liveDoc = document.getElementById('liveDoc'), doc = document.getElementById('doc'),
+      placeholder = document.getElementById('placeholder'), listTitle = document.getElementById('listTitle');
+let currentPara = null, partialEl = null, partialIndex = 0;   // Live mode: last paragraph + grey preview
+
+// Try saved mode choice
+try { const m = localStorage.getItem('asrMode'); if (m) document.querySelector(`input[value="${m}"]`).checked = true; } catch(e){}
+document.querySelectorAll('input[name=mode]').forEach(r => r.onchange = () => { try{ localStorage.setItem('asrMode', r.value); }catch(e){} });
+const mode = () => document.querySelector('input[name=mode]:checked').value;
+
+// Show the public tunnel link if the server has one
+fetch('/health').then(r => r.json()).then(h => {
+  if (h.public_url && !location.href.startsWith(h.public_url)) {
+    document.getElementById('publicUrl').textContent = h.public_url;
+    document.getElementById('share').style.display = 'block';
+    document.getElementById('copy').onclick = () => navigator.clipboard.writeText(h.public_url);
+  }
+}).catch(()=>{});
+
+// AudioWorklet: grabs mic audio, downsamples to 16 kHz mono int16, posts ~100 ms chunks
+const worklet = `
+class Pcm16 extends AudioWorkletProcessor {
+  constructor(){ super(); this.ratio = sampleRate/16000; this.acc = []; this.pos = 0; }
+  process(inputs){
+    const ch = inputs[0][0]; if(!ch) return true;
+    for(; this.pos < ch.length; this.pos += this.ratio){ this.acc.push(ch[Math.floor(this.pos)]); }
+    this.pos -= ch.length;
+    if(this.acc.length >= 1600){
+      const buf = new Int16Array(this.acc.length);
+      for(let i=0;i<this.acc.length;i++){ const s=Math.max(-1,Math.min(1,this.acc[i])); buf[i]=s<0?s*0x8000:s*0x7FFF; }
+      this.port.postMessage(buf.buffer,[buf.buffer]); this.acc = [];
+    }
+    return true;
+  }
+}
+registerProcessor('pcm16', Pcm16);`;
+
+function makeRow(r, partial){
+  const d = document.createElement('div');
+  fillRow(d, r, partial);
+  return d;
+}
+function fillRow(d, r, partial){
+  d.className = 'row ' + r.language + (partial ? ' partial' : '');
+  const right = partial ? 'speaking…' : `${r.clock_time.slice(11)} · ${(r.confidence*100).toFixed(0)}%`;
+  d.innerHTML = `<div class="meta"><span class="tag">${r.language_name}${r.code_switch_split?' · switch':''}</span>
+    <span>${right}</span></div><div class="text" dir="${r.direction}"></div>`;
+  d.querySelector('.text').textContent = r.text;
+}
+function scrollDown(el){ el.scrollIntoView({behavior:'smooth', block:'end'}); }
+
+// ---------- Live mode: continuous transcript ----------
+// Sentences flow into one running text. A new paragraph starts only when the language changes.
+function paraFor(m){
+  if (currentPara && currentPara.dataset.lang === m.language) return currentPara;
+  const p = document.createElement('p');
+  p.className = 'para ' + m.language; p.dir = m.direction; p.dataset.lang = m.language;
+  const tag = document.createElement('span'); tag.className = 'ptag'; tag.textContent = m.language_name;
+  p.appendChild(tag);
+  doc.appendChild(p); currentPara = p;
+  placeholder.hidden = true;
+  return p;
+}
+function dropPartial(){
+  if (!partialEl) return;
+  const p = partialEl.parentNode; partialEl.remove(); partialEl = null; partialIndex = 0;
+  if (p && p.querySelectorAll('.seg').length === 0) {                  // paragraph held only the preview
+    p.remove();
+    currentPara = doc.querySelector('.para:last-of-type');
+  }
+}
+function followBottom(){ window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'}); }
+
+function onPartial(m){
+  if (m.index <= finalizedUpTo) return;                 // that sentence is already final
+  if (!partialEl || (currentPara && currentPara.dataset.lang !== m.language)) {
+    dropPartial();
+    partialEl = document.createElement('span'); partialEl.className = 'partial';
+    paraFor(m).appendChild(partialEl);
+  }
+  partialIndex = m.index;
+  partialEl.textContent = m.text;
+  followBottom();
+}
+function appendFinal(m){
+  if (partialEl && partialIndex <= m.index) dropPartial();
+  const seg = document.createElement('span'); seg.className = 'seg';
+  seg.textContent = m.text + ' ';
+  paraFor(m).appendChild(seg);
+  followBottom();
+}
+
+// ---------- Sentence mode: one card per sentence ----------
+function onSegment(m){
+  if (mode() === 'live') { appendFinal(m); return; }
+  const row = makeRow(m, false), prev = finals.get(m.index);
+  if (prev) prev.after(row); else out.appendChild(row);  // 2nd part of a code-switched sentence goes right after the 1st
+  finals.set(m.index, row);
+  listTitle.style.display = 'block';
+  scrollDown(row);
+}
+function onDone(m){
+  finalizedUpTo = Math.max(finalizedUpTo, m.index);
+  if (partialEl && partialIndex <= m.index) dropPartial();
+}
+
+async function start(){
+  stream = await navigator.mediaDevices.getUserMedia({audio:{channelCount:1, echoCancellation:true, noiseSuppression:true, autoGainControl:true}});
+  ctx = new AudioContext();
+  await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([worklet],{type:'application/javascript'})));
+  const src = ctx.createMediaStreamSource(stream);
+  node = new AudioWorkletNode(ctx, 'pcm16');
+  finals.clear(); finalizedUpTo = 0;
+  const live = mode() === 'live';
+  liveDoc.hidden = !live; out.hidden = live; listTitle.style.display = 'none';
+  if (live) {                                            // fresh transcript for this recording
+    doc.querySelectorAll('.para').forEach(p => p.remove());
+    currentPara = null; partialEl = null; partialIndex = 0; placeholder.hidden = false;
+  } else { out.innerHTML = ''; }
+  ws = new WebSocket((location.protocol==='https:'?'wss://':'ws://') + location.host + '/ws/transcribe?mode=' + mode());
+  ws.binaryType = 'arraybuffer';
+  ws.onmessage = e => {
+    const m = JSON.parse(e.data);
+    if (m.type==='partial') onPartial(m);
+    else if (m.type==='segment') onSegment(m);
+    else if (m.type==='done') onDone(m);
+    else if (m.type==='session') links.innerHTML='';
+    else if (m.type==='saved') { links.innerHTML = `<a href="${m.json}" target="_blank">JSON</a><a href="${m.excel}">Excel</a>`; statusEl.textContent='Saved'; statusEl.className='muted'; }
+    else if (m.type==='error') console.warn(m.message);
+  };
+  ws.onopen = () => { node.port.onmessage = ev => { if(ws.readyState===1) ws.send(ev.data); }; src.connect(node); };
+  ws.onclose = () => { if(running) stop(); };
+  running = true; btn.textContent='Stop'; btn.className='stop'; modes.classList.add('locked');
+  statusEl.textContent = mode()==='live' ? '● Live' : '● Listening'; statusEl.className='live';
+}
+
+function stop(){
+  running = false;
+  try{ ws && ws.readyState===1 && ws.send(JSON.stringify({type:'stop'})); }catch(e){}
+  try{ node && node.disconnect(); stream && stream.getTracks().forEach(t=>t.stop()); ctx && ctx.close(); }catch(e){}
+  btn.textContent='Start'; btn.className=''; modes.classList.remove('locked');
+  dropPartial();
+  statusEl.textContent='Finishing & saving…'; statusEl.className='muted';
+}
+
+btn.onclick = () => running ? stop() : start().catch(e => { statusEl.textContent = 'Mic error: ' + e.message; });
+</script>
+</body>
+</html>

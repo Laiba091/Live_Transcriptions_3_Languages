@@ -1,0 +1,33 @@
+# CPU-only setup, Python 3.11 (Windows / Linux / Mac).
+# Install everything with ONE command:   pip install -r requirements.txt
+# Versions are pinned so they work together.
+
+# ---- PyTorch (CPU build) ----
+torch==2.5.1
+torchaudio==2.5.1
+
+# ---- Speech models ----
+faster-whisper==1.1.1        # English + Urdu
+transformers==4.46.3         # Pashto (Katib-ASR)
+accelerate==1.1.1
+speechbrain==1.0.3           # language identification (en / ur / ps)
+silero-vad==5.1.2            # speech detection
+huggingface-hub==0.26.5
+sentencepiece==0.2.0
+
+# ---- API server ----
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+python-multipart==0.0.20
+
+# ---- Data / saving ----
+numpy==1.26.4
+pandas==2.2.3
+openpyxl==3.1.5
+
+# ---- Terminal mic client (optional) ----
+sounddevice==0.5.1
+websockets==14.1
+
+# ---- Tests ----
+pytest==8.3.4

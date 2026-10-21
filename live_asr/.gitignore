@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+*.pyc
+.env
+pretrained_models/
+data/sessions/json/*.json
+data/sessions/excel/*.xlsx
+!data/sessions/**/.gitkeep
+.pytest_cache/
+tools/
